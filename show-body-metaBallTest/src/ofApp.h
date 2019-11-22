@@ -2,6 +2,7 @@
 
 #include "ofMain.h"
 #include "Blob.h"
+#include "ofxBlur.h"
 
 
 
@@ -29,8 +30,9 @@ class ofApp : public ofBaseApp{
         int bodyIndex = 0;
     
     // shadow effect
-   // void addBlob(float x, float y);
+    void addBlob(float x, float y, float w, float h);
     vector<Blob> blobs;
-    ofImage canvas;
+    //ofImage canvas;
+    ofxBlur blur;
         
 };

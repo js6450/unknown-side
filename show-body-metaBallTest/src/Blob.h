@@ -15,9 +15,12 @@
 class Blob
 {
 public:
-    void setup(float x, float y);
+    void setup(float x, float y, float w, float h);
+    void draw();
     glm::vec2 pos;
-    float r;
+    ofColor color;
+    float width;
+    float height;
 };
 
 #endif /* Blob_h */

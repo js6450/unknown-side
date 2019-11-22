@@ -7,22 +7,23 @@
 
 #include "Blob.h"
 
-void Blob::setup(float x, float y)
+void Blob::setup(float x, float y, float w, float h)
 {
     pos = glm::vec2(x, y);
-    r = 50;
-//    color = ofColor (0);
+    color = ofColor(0);
+    width = w;
+    height = h;
 //
 //
 }
 
-//void Blob::draw()
-//{
-//    glPushMatrix();
-//    glTranslatef(pos.x, pos.y, 0);
-//    ofSetColor(color);
-//    ofDrawCircle(0, 0, r);
-//    glPopMatrix();
-//}
+void Blob::draw()
+{
+    glPushMatrix();
+    glTranslatef(pos.x, pos.y, 0);
+    ofSetColor(color);
+    ofDrawEllipse(0, 0, width, height);
+    glPopMatrix();
+}
 
 
