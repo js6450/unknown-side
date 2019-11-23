@@ -18,8 +18,11 @@ public:
     float r;
     glm::vec2 vel;
     
-    Blob(float x, float y);
-    void update();
+    Blob(float x, float y, float w, float h);
+//    void update();
+    
+    float width;
+    float height;
     
 };
 
