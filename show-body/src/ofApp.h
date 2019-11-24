@@ -23,8 +23,11 @@ class ofApp : public ofBaseApp{
 		void dragEvent(ofDragInfo dragInfo);
 		void gotMessage(ofMessage msg);
 
-		vector<string> bodies;
+//		vector<string> bodies;
         vector< vector<string> > actions;
+    
+        vector<string> firstBody;
+        vector<string> secondBody;
 
 		int bodyIndex = 0;
         int realSpeed = 1;
