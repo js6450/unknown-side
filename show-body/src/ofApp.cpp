@@ -24,113 +24,10 @@ void ofApp::setup(){
     
     ofSetVerticalSync(false);
     ofSetFrameRate(60);
-    
-/*    array<int, 44> selectedJoints {0, 1, 2, 4, 5, 6, 7, 8, 11,12,13,14,15,18,19,20,21,22,23,24,25,26,
-                                32,33,34,36,37,38,39,40,43,44,45,46,47,50,51,52,53,54,55,56,57,58};
-                       0  pelvis,
-                       1 spine,_naval,
-                       2 spine_chest,
-                       4 clavicle_left
-                       5 shoulder_left
-                       6 elbow_left
-                       7 wrist_left
-                       8 hand_left
-                       11 clavicle_right
-                       12 shoulder_right
-                       13 elbow_right
-                       14 wrist_right
-                       15 hand_right
-                       18 hip_left
-                       19 knee_left
-                       20 ankle_left
-                       21 foor_left
-                       22 hip_right
-                       23 knee_right
-                       24 ankle_right
-                       25 foot_right
-                       26 head
- */
-   
-    float w;
-    float h;
-    for (int i = 0; i < 64; i++){
-//        for (int j = 0; j < 64; j++) {
-        //if ( i == selectedJoints[j]) {
-            switch (i) {
-                case 0:
-                case 32:
-                    w = 32; h = 20;
-                break;
-                case 1:
-                case 2:
-                case 33:
-                case 34:
-                    w = 18; h = 22;
-                break;
-                case 4:
-                case 11:
-                case 36:
-                case 43:
-                    w = 14; h = 6;
-                break;
-                case 5:
-                case 12:
-                case 37:
-                case 44:
-                    w = 14; h = 20;
-                break;
-                case 6:
-                case 13:
-                case 38:
-                case 45:
-                    w = 14; h = 40;
-                break;
-                case 7:
-                case 14:
-                case 39:
-                case 46:
-                    w = 10; h = 10;
-                break;
-                case 8:
-                case 15:
-                case 40:
-                case 47:
-                    w = 10; h = 10;
-                break;
-                case 18:
-                case 22:
-                case 50:
-                case 54:
-                    w = 14; h = 40;
-                break;
-                case 19:
-                case 23:
-                case 51:
-                case 55:
-                    w = 14; h = 60;
-                break;
-                case 20:
-                case 24:
-                case 52:
-                case 56:
-                    w = 10; h = 28;
-                break;
-                case 21:
-                case 25:
-                case 53:
-                case 57:
-                    w = 20; h = 10;
-                break;
-                case 26:
-                case 58:
-                    w = 20; h = 36;
-                break;
-              default:
-                    w = 0.01; h = 0.01;
-           // }
-//         }
-        }
-          blobs.push_back(Blob(0, 0, w, h));
+
+    for (int i = 0; i < 64; i++)
+    {
+        blobs.push_back(Blob(ofRandomWidth(), ofRandomHeight()));
     }
 
     shader.setupShaderFromSource(GL_VERTEX_SHADER, R"(
@@ -149,32 +46,22 @@ void ofApp::setup(){
 
     #define NUM_BLOBS 64
 
-    uniform vec4 blobs[NUM_BLOBS];
+    uniform vec3 blobs[NUM_BLOBS];
 
     out vec4 outputColor;
-                                                        
+
     void main()
     {
-                            
         float color = 0.0;
-        float sum = 255.0;
-        
-   
+        float sum = 0.0;
         for(int i = 0; i < NUM_BLOBS; ++i)
         {
-        vec2 blobPos = vec2(blobs[i].x, blobs[i].y);
-        vec2 fragPos = vec2(gl_FragCoord.x, gl_FragCoord.y);
-       
-                                 
-        // sum +=  5 * blobs[i].z / distance(blobPos,fragPos);
-
-        sum -=  500 / ((( gl_FragCoord.x - blobs[i].x) * ( gl_FragCoord.x - blobs[i].x)) / (blobs[i].z/2 * blobs[i].z/2) + (( gl_FragCoord.y - blobs[i].y) * ( gl_FragCoord.y - blobs[i].y)) / (blobs[i].w/2 * blobs[i].w/2));
+            vec2 blobPos = vec2(blobs[i].x, blobs[i].y);
+            vec2 fragPos = vec2(gl_FragCoord.x, gl_FragCoord.y);
+            sum += 5 * blobs[i].z / distance(blobPos, fragPos);
         }
-        if (sum <= 256.0) {
-        color = max(0.0, sum) / 255.0;
-        } else {color = 0.0;}
-        outputColor = vec4(color, color, color , 1.0);
-                      
+        color = min(255.0, sum) / 255.0;
+        outputColor = vec4(color, color, color, 1.0);
     }
     )");
     
@@ -238,7 +125,7 @@ void ofApp::setup(){
         actions.push_back(currentBodies);
     }
     
-//    cout << actions.size() << endl;
+    cout << actions.size() << endl;
 
     bodyOne.set("body one x pos", ofGetWidth() / 4, 0, ofGetWidth() / 2);
     bodyTwo.set("body two x pos", ofGetWidth() * 3 / 4, ofGetWidth() / 2, ofGetWidth());
@@ -346,7 +233,7 @@ void ofApp::update(){
 //--------------------------------------------------------------
 void ofApp::draw(){
 
-    ofSetColor(255);
+    ofSetColor(255, 30);
     ofDrawRectangle(0, 0, ofGetWidth(), ofGetHeight());
 	
     dist = ofDist(bodyOne, ofGetHeight() / 2, bodyTwo, ofGetHeight() / 2);
@@ -363,16 +250,14 @@ void ofApp::draw(){
     shader.begin();
 
     // Use a pointer instead of an array so that we can use a variable size.
-    float* v = new float[blobs.size() * 4];
+    float* v = new float[blobs.size() * 3];
     for (int i = 0; i < blobs.size(); i++)
     {
-        v[i * 4 + 0] = blobs[i].pos.x;
-        v[i * 4 + 1] = blobs[i].pos.y;
-        v[i * 4 + 2] = blobs[i].width;
-        v[i * 4 + 3] = blobs[i].height;
-        
+        v[i * 3 + 0] = blobs[i].pos.x;
+        v[i * 3 + 1] = blobs[i].pos.y;
+        v[i * 3 + 2] = blobs[i].r;
     }
-    shader.setUniform4fv("blobs", v, 48 * 4);
+    shader.setUniform3fv("blobs", v, 48 * 3);
     ofDrawRectangle(0, 0, ofGetWidth(), ofGetHeight());
     
     shader.end();
@@ -422,7 +307,7 @@ void ofApp::drawReal(int i){
                 
                 ofPushMatrix();
                 ofTranslate(bodyOne, ofGetHeight() / 2);
-                ofSetColor(0, 0, 0, z);
+                ofSetColor(255, 0, 0, z);
                 ofDrawEllipse(x, y, 20, 20);
                 ofPopMatrix();
 
@@ -435,6 +320,9 @@ void ofApp::drawReal(int i){
                 ofSetColor(0, 0, 255, z);
                 ofDrawEllipse(x, y, 20, 20);
                 ofPopMatrix();
+                
+                
+                
 
             }
 
@@ -464,14 +352,7 @@ void ofApp::drawBody(int i){
                 }
                 
                 blobs[i].pos.x = moveOne + x;
-                // move the head up
-                if ( i == 26) {
-                     blobs[i].pos.y = ofGetHeight() - (y + ofGetHeight() / 2) + 26;
-                } else {
                 blobs[i].pos.y = ofGetHeight() - (y + ofGetHeight() / 2);
-                }
-//                blobs[i].width = 5.0;
-//                blobs[i].height = 2.0;
                 
                 /*
                  level one action: stand [0 - 2]
@@ -496,14 +377,7 @@ void ofApp::drawBody(int i){
                 }
                 
                 blobs[i + 32].pos.x = moveTwo + x;
-                // move the head up
-                if ( i == 26) {
-                     blobs[i + 32].pos.y = ofGetHeight() - (y + ofGetHeight() / 2) + 26;
-                } else {
                 blobs[i + 32].pos.y = ofGetHeight() - (y + ofGetHeight() / 2);
-                }
-//                blobs[i + 32].width = 5.0;
-//                blobs[i + 32].height = 2.0;
                 
 //                ofPushMatrix();
 //
