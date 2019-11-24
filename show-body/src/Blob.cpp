@@ -13,6 +13,7 @@ Blob::Blob(float x, float y, float w, float h){
 //    vel *= ofRandom(2, 5);
     width = w;
     height = h;
+	r = 10;
 //    r = 10;
 }
 

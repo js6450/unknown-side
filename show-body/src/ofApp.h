@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ofMain.h"
+#include "ofxAzureKinect.h"
 #include "ofxGui.h"
 #include "Blob.h"
 
@@ -8,6 +9,8 @@ class ofApp : public ofBaseApp{
 
 	public:
 		void setup();
+		void exit();
+
 		void update();
 		void draw();
 
@@ -36,6 +39,16 @@ class ofApp : public ofBaseApp{
         float onemeter = 1280 / 4;
     
         int bufferCount = 0;
+
+		glm::vec2 spineOne;
+		glm::vec2 spineTwo;
+		glm::vec2 prevSpineOne = glm::vec2(0, 0);
+		glm::vec2 prevSpineTwo = glm::vec2(1280, 0);
+
+		float spineOneX = 0;
+		float spineOneY = 0;
+		float spineTwoX = 0;
+		float spineTwoY = 0;
     
         float prevOne;
         float prevTwo;
@@ -44,17 +57,21 @@ class ofApp : public ofBaseApp{
         ofParameter<float> bodyOne;
         ofParameter<float> bodyTwo;
         ofParameter<float> dist;
-        ofParameter<bool> showShadow;
+        ofParameter<bool> showAni;
         ofParameter<bool> triggerAni;
         ofParameter<bool> autoAni;
     
         ofxPanel gui;
     
         void drawBody(int i);
-        void drawReal(int i);
-        
+
         ofImage canvas;
         std::vector<Blob> blobs;
     
         ofShader shader;
+
+		int totalBodies = 0;
+
+private:
+	ofxAzureKinect::Device kinectDevice;
 };

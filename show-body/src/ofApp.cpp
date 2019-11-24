@@ -24,6 +24,22 @@ void ofApp::setup(){
     
     ofSetVerticalSync(false);
     ofSetFrameRate(60);
+
+	ofLogNotice(__FUNCTION__) << "Found " << ofxAzureKinect::Device::getInstalledCount() << " installed devices.";
+
+	auto kinectSettings = ofxAzureKinect::DeviceSettings();
+	kinectSettings.synchronized = false;
+	kinectSettings.depthMode = K4A_DEPTH_MODE_NFOV_UNBINNED;
+	kinectSettings.updateIr = false;
+	kinectSettings.updateColor = false;
+	//kinectSettings.colorResolution = K4A_COLOR_RESOLUTION_1080P;
+	kinectSettings.updateBodies = true;
+	kinectSettings.updateWorld = true;
+	kinectSettings.updateVbo = false;
+	if (this->kinectDevice.open(kinectSettings))
+	{
+		this->kinectDevice.startCameras();
+	}
     
 /*    array<int, 44> selectedJoints {0, 1, 2, 4, 5, 6, 7, 8, 11,12,13,14,15,18,19,20,21,22,23,24,25,26,
     32,33,34,36,37,38,39,40,43,44,45,46,47,50,51,52,53,54,55,56,57,58};
@@ -78,10 +94,10 @@ void ofApp::setup(){
                     w = 14; h = 20;
                 break;
                 case 6:
-                case 13:
+				case 13:
                 case 38:
                 case 45:
-                    w = 14; h = 40;
+                    w = 14; h = 14;
                 break;
                 case 7:
                 case 14:
@@ -157,21 +173,19 @@ void ofApp::setup(){
         float color = 0.0;
         float sum = 255.0;
         
-   
         for(int i = 0; i < NUM_BLOBS; ++i)
         {
         vec2 blobPos = vec2(blobs[i].x, blobs[i].y);
         vec2 fragPos = vec2(gl_FragCoord.x, gl_FragCoord.y);
-       
-                                 
-        // sum +=  5 * blobs[i].z / distance(blobPos,fragPos);
+                                      
+         //sum +=  5 * blobs[i].z / distance(blobPos,fragPos);
 
-        sum -=  500 / ((( gl_FragCoord.x - blobs[i].x) * ( gl_FragCoord.x - blobs[i].x)) / (blobs[i].z/2 * blobs[i].z/2) + (( gl_FragCoord.y - blobs[i].y) * ( gl_FragCoord.y - blobs[i].y)) / (blobs[i].w/2 * blobs[i].w/2));
+         sum -=  600 / ((( gl_FragCoord.x - blobs[i].x) * ( gl_FragCoord.x - blobs[i].x)) / (blobs[i].z/2 * blobs[i].z/2) + (( gl_FragCoord.y - blobs[i].y) * ( gl_FragCoord.y - blobs[i].y)) / (blobs[i].w/2 * blobs[i].w/2));
         }
         if (sum <= 256.0) {
         color = max(0.0, sum) / 255.0;
         } else {color = 0.0;}
-        outputColor = vec4(color, color, color , 1.0);
+        outputColor = vec4(color, color, color , 0.1);
                       
     }
     )");
@@ -243,7 +257,7 @@ void ofApp::setup(){
     bodyOne.set("body one x pos", ofGetWidth() / 4, 0, ofGetWidth() / 2);
     bodyTwo.set("body two x pos", ofGetWidth() * 3 / 4, ofGetWidth() / 2, ofGetWidth());
     dist.set("distance", ofGetWidth() / 2, 0, ofGetWidth());
-    showShadow.set("show shadow", false);
+    showAni.set("show shadow", false);
     triggerAni.set("show ani", false);
     autoAni.set("automate", true);
     
@@ -252,11 +266,11 @@ void ofApp::setup(){
     gui.add(bodyOne);
     gui.add(bodyTwo);
     gui.add(dist);
-    gui.add(showShadow);
+    gui.add(showAni);
     gui.add(triggerAni);
     gui.add(autoAni);
     
-    ofSetBackgroundAuto(true);
+    ofSetBackgroundAuto(false);
 
     ofBackground(255);
     
@@ -264,104 +278,202 @@ void ofApp::setup(){
 }
 
 //--------------------------------------------------------------
-void ofApp::update(){
-    
-    dist = ofDist(bodyOne, ofGetHeight() / 2, bodyTwo, ofGetHeight() / 2);
+void ofApp::exit()
+{
+	this->kinectDevice.close();
+}
 
-    if(prevOne == bodyOne && prevTwo == bodyTwo){
-        
-        if(bufferCount > 60){
-            
-            showShadow = true;
-            
-            /*
-             level one action: stand [0 - 2]
-             level two action: handshake, hug [3 - 6]
-             level three action: pat, linking, kiss, cuddle [7 - 18]
-             avert action: walking [19 - 20]
-             */
-            
-            if(triggerAni){
-                bodyIndex = 0;
-                moveOne = bodyOne;
-                moveTwo = bodyTwo;
-                
-    //            if(dist < onemeter * 0.45){
-    //                    currentBody = ofRandom(7, 18);
-    //            }else if (dist >= onemeter * 0.45 && dist < onemeter * 1.2){
-    //                    currentBody = ofRandom(3, 7);
-    //            }else if (dist >= onemeter * 1.2 && dist < onemeter * 3.6){
-    //                    currentBody = ofRandom(0, 3);
-    //            }else{
-    //                showShadow = false;
-    //            }
-                
-                if(dist < onemeter){
-                        currentBody = ofRandom(7, 18);
-                }else if (dist >= onemeter && dist < onemeter * 2){
-                        currentBody = ofRandom(3, 7);
-                }else if (dist >= onemeter * 2 && dist < onemeter * 3){
-                        currentBody = ofRandom(0, 3);
-                }else{
-                    showShadow = false;
-                }
-                triggerAni = false;
-                bufferCount = 0;
-            }
-        }
-        
-        bufferCount++;
-        
-    }else{
-        showShadow = false;
-        triggerAni = true;
-    }
-    
+//--------------------------------------------------------------
+void ofApp::update(){
+
+	auto& bodySkeletons = this->kinectDevice.getBodySkeletons();
+
+	totalBodies = bodySkeletons.size();
+
+	if (totalBodies > 1) {
+		spineOne = glm::vec2(0, 0);
+		spineTwo = glm::vec2(ofGetWidth(), 0);
+
+		for (int s = 0; s < bodySkeletons.size(); s++) {
+
+			float mappedX = ofMap(bodySkeletons[s].joints[2].position.xyz.x, ofGetWidth() * 2, -ofGetWidth() * 2, 0, ofGetWidth());
+			float mappedY = ofMap(bodySkeletons[s].joints[2].position.xyz.y, -ofGetHeight() * 2, ofGetHeight() * 2, 0, ofGetHeight());
+
+			if (bodySkeletons[s].joints[2].position.xyz.x > 0) {
+				// left = spineOne
+				spineOne = glm::vec2(mappedX, mappedY);
+			}
+			else {
+				// right = spineTwo
+				spineTwo = glm::vec2(mappedX, mappedY);
+			}
+
+			/*
+			if (s == 0) {
+				spineOne = glm::vec2(bodySkeletons[s].joints[2].position.xyz.x, bodySkeletons[s].joints[2].position.xyz.y);
+			}
+			else if (s == 1) {
+				spineTwo = glm::vec2(bodySkeletons[s].joints[2].position.xyz.x, bodySkeletons[s].joints[2].position.xyz.y);
+			}
+			*/
+		}
+
+		if (abs(glm::distance(prevSpineOne, spineOne)) < 5 && abs(glm::distance(prevSpineTwo, spineTwo)) < 5) {
+			dist = abs(glm::distance(spineOne, spineTwo));
+
+			if (bufferCount > 30) {
+
+				showAni = true;
+				/*
+				 level one action: stand [0 - 2]
+				 level two action: handshake, hug [3 - 6]
+				 level three action: pat, linking, kiss, cuddle [7 - 18]
+				 avert action: walking [19 - 20]
+				 */
+				if (triggerAni) {
+					bodyIndex = 0;
+
+					if (dist < onemeter) {
+						currentBody = ofRandom(7, 18);
+					}
+					else if (dist >= onemeter && dist < onemeter * 2) {
+						currentBody = ofRandom(3, 7);
+					}
+					else if (dist >= onemeter * 2 && dist < onemeter * 3) {
+						currentBody = ofRandom(0, 3);
+					}
+
+					triggerAni = false;
+					bufferCount = 0;
+				}
+			}
+			bufferCount++;
+		}else {
+			triggerAni = true;
+		}
+	}
+	else {
+		showAni = false;
+	}
+
+	//showAni can only be true if there is more than one body
+	if (!showAni) {
+		for (int s = 0; s < bodySkeletons.size(); s++) {
+			if (s < 2) {
+
+				//right
+				int bIndex = 0;
+
+				//left
+				if (bodySkeletons[s].joints[2].position.xyz.x > 0) {
+					bIndex += 32;
+				}
+
+				for (int i = 0; i < K4ABT_JOINT_COUNT; ++i) {
+					auto joint = bodySkeletons[s].joints[i];
+
+					float x = joint.position.xyz.x;
+					float y = joint.position.xyz.y;
+					float z = joint.position.xyz.z;
+
+					float mappedx = ofMap(x, ofGetWidth() * 2, -ofGetWidth() * 2, 0, ofGetWidth());
+					float mappedy = ofMap(y, -ofGetHeight() * 2, ofGetHeight() * 2, -ofGetHeight() / 2, ofGetHeight() / 2);
+
+					blobs[bIndex + i].pos.x = mappedx;
+
+					// move the head up
+					if (i == 26) {
+						blobs[bIndex + i].pos.y = ofGetHeight() - (mappedy + ofGetHeight() / 2) + 26;
+					}
+					else {
+						blobs[bIndex + i].pos.y = ofGetHeight() - (mappedy + ofGetHeight() / 2);
+					}
+				}
+
+			}
+
+		}
+	}
+	
+	else {
+		if (actions.size() > 0) {
+
+			auto joints = ofSplitString(actions[currentBody][bodyIndex], ";");
+
+			for (int i = 0; i < joints.size(); i++) {
+
+				auto pos = ofSplitString(joints[i], ",");
+
+				if (pos.size() == 3) {
+
+					float targetX, targetY;
+					float x, y, z;
+
+					//left side
+
+					x = ofMap(ofToInt(pos[0]), -ofGetWidth() * 2, ofGetWidth() * 2, -ofGetWidth() / 2, ofGetWidth() / 2) - 45;
+					y = ofMap(ofToInt(pos[1]), -ofGetHeight() * 2, ofGetHeight() * 2, -ofGetHeight() / 2, ofGetHeight() / 2);
+					z = ofMap(ofToFloat(pos[2]), 1500, 1700, 70, 30);
+
+				    targetX = spineOne.x + dist / 2;
+					targetY = ofGetHeight() - (y + ofGetHeight() / 2);
+
+					blobs[i + 32].pos.x = ofLerp(blobs[i + 32].pos.x, targetX + x, 0.05);
+					
+					if (i == 26) {
+						blobs[i + 32].pos.y = ofLerp(blobs[i + 32].pos.y, targetY + 26, 0.05);
+					}
+					else {
+						blobs[i + 32].pos.y = ofLerp(blobs[i + 32].pos.y, targetY, 0.05);
+					}
+
+
+					// right side
+
+					x = ofMap(ofToInt(pos[0]), ofGetWidth() * 2, -ofGetWidth() * 2, -ofGetWidth() / 2, ofGetWidth() / 2) + 45;
+					y = ofMap(ofToInt(pos[1]), -ofGetHeight() * 2, ofGetHeight() * 2, -ofGetHeight() / 2, ofGetHeight() / 2);
+					z = ofMap(ofToFloat(pos[2]), 1500, 1700, 200, 30);
+
+					targetX = spineTwo.x - dist / 2;
+					targetY = ofGetHeight() - (y + ofGetHeight() / 2);
+
+					blobs[i].pos.x = ofLerp(blobs[i].pos.x, targetX + x, 0.05);
+
+					if (i == 26) {
+						blobs[i].pos.y = ofLerp(blobs[i].pos.y, targetY + 26, 0.05);
+					}
+					else {
+						blobs[i].pos.y = ofLerp(blobs[i].pos.y, targetY, 0.05);
+					}
+
+				}
+
+			}
+
+		}
+	}
+	
+
 	if (bodyIndex < actions[currentBody].size() - 1) {
-        if(showShadow){
+        if(showAni){
             bodyIndex++;
         }
 	}
 	else {
 		//bodyIndex = 0;
-        showShadow = false;
+        showAni = false;
 	}
-
-    if(ofGetFrameNum() % 2 == 0){
-        
-        realIndex += realSpeed;
-
-        if(realIndex > actions[19].size() - 1 || realIndex < 0){
-            realSpeed *= -1;
-        }
-//
-//        if(realIndex < actions[19].size() - 1){
-//            realIndex++;
-//        }else{
-//            realIndex = 0;
-//        }
-    }
     
-//    cout << realIndex << endl;
-
-    
+	prevSpineOne = spineOne;
+	prevSpineTwo = spineTwo;
 }
 
 //--------------------------------------------------------------
 void ofApp::draw(){
 
-    ofSetColor(255);
+    ofSetColor(255, 10);
     ofDrawRectangle(0, 0, ofGetWidth(), ofGetHeight());
-	
-    dist = ofDist(bodyOne, ofGetHeight() / 2, bodyTwo, ofGetHeight() / 2);
-    
-    if(showShadow){
-        drawBody(currentBody);
-    }
-    
-    prevOne = bodyOne;
-    prevTwo = bodyTwo;
-    
+
     shader.begin();
 
     // Use a pointer instead of an array so that we can use a variable size.
@@ -382,124 +494,33 @@ void ofApp::draw(){
     // Delete the pointer when done (Remember, every "new" needs a matching "delete").
     delete[] v;
     
+	/*
     ofSetColor(255, 0, 0);
-    ofDrawEllipse(bodyOne, ofGetHeight() / 2, 25, 25);
-    ofSetColor(0, 0, 255);
-    ofDrawEllipse(bodyTwo, ofGetHeight() / 2, 25, 25);
+	ofDrawEllipse(blobs[0].pos.x, blobs[0].pos.y, 50, 50);
 
-    ofDrawBitmapStringHighlight(ofToString(ofGetFrameRate(), 2), ofGetWidth() - 100, 20);
-    
-    drawReal(19);
-    
-    gui.draw();
-}
+	//blue is always on the left
+	ofSetColor(0, 0, 255);
+	ofDrawEllipse(blobs[32].pos.x, blobs[32].pos.y, 50, 50);
 
-void ofApp::drawReal(int i){
-    if (actions.size() > 0) {
+	ofSetColor(255, 0, 0);
+	ofDrawRectangle(spineOne.x, spineOne.y, 50, 50);
 
-        auto joints = ofSplitString(actions[i][realIndex], ";");
-        
-//        if(autoAni && joints[1].size() == 1){
-//            bodyOne = ofMap(ofToFloat(ofSplitString(joints[1], ",")[0]), ofGetWidth() * 2, -ofGetWidth() * 2, 0,  ofGetWidth() / 2);
-//            bodyTwo = ofMap(ofToFloat(ofSplitString(joints[1], ",")[0]), -ofGetWidth() * 2, ofGetWidth() * 2, ofGetWidth() / 2, ofGetWidth());
-//        }
+	//blue is always on the left
+	ofSetColor(0, 0, 255);
+	ofDrawRectangle(spineTwo.x, spineTwo.y, 50, 50);
+	*/
 
-        for (auto joint : joints) {
-            
-            auto pos = ofSplitString(joint, ",");
+    ofDrawBitmapStringHighlight(ofToString(currentBody), ofGetWidth() - 100, 20);
+	ofDrawBitmapStringHighlight(ofToString(ofGetFrameRate(), 2), ofGetWidth() - 100, 50);
 
-            if (pos.size() == 3) {
-                
-
-                float x = ofMap(ofToInt(pos[0]), ofGetWidth() * 2, -ofGetWidth() * 2, -ofGetWidth() / 2, ofGetWidth() / 2) - 45;
-                float y = ofMap(ofToInt(pos[1]), -ofGetHeight() * 2, ofGetHeight() * 2, -ofGetHeight() / 2, ofGetHeight() / 2);
-                float z = ofMap(ofToFloat(pos[2]), 1500, 1700, 70, 30);
-                
-                /*
-                 level one action: stand [0 - 2]
-                 level two action: handshake, hug [3 - 6]
-                 level three action: pat, linking, kiss, cuddle [7 - 18]
-                 avert action: walking [19 - 20]
-                 */
-                
-                ofPushMatrix();
-                ofTranslate(bodyOne, ofGetHeight() / 2);
-                ofSetColor(0, 0, 0, z);
-                ofDrawEllipse(x, y, 20, 20);
-                ofPopMatrix();
-
-                x = ofMap(ofToInt(pos[0]), -ofGetWidth() * 2, ofGetWidth() * 2, -ofGetWidth() / 2, ofGetWidth() / 2) + 45;
-                y = ofMap(ofToInt(pos[1]), -ofGetHeight() * 2, ofGetHeight() * 2, -ofGetHeight() / 2, ofGetHeight() / 2);
-                z = ofMap(ofToFloat(pos[2]), 1500, 1700, 200, 30);
-                
-                ofPushMatrix();
-                ofTranslate(bodyTwo, ofGetHeight() / 2);
-                ofSetColor(0, 0, 255, z);
-                ofDrawEllipse(x, y, 20, 20);
-                ofPopMatrix();
-
-            }
-
-        }
-
-    }
+    //gui.draw();
 }
 
 void ofApp::drawBody(int i){
+
+	//combine this to update()
     
-    if (actions.size() > 0) {
-
-        auto joints = ofSplitString(actions[i][bodyIndex], ";");
-
-        for (int i = 0; i < joints.size(); i++) {
-            
-            auto pos = ofSplitString(joints[i], ",");
-
-            if (pos.size() == 3) {
-                
-                float x = ofMap(ofToInt(pos[0]), -ofGetWidth() * 2, ofGetWidth() * 2, -ofGetWidth() / 2, ofGetWidth() / 2) - 45;
-                float y = ofMap(ofToInt(pos[1]), -ofGetHeight() * 2, ofGetHeight() * 2, -ofGetHeight() / 2, ofGetHeight() / 2);
-                float z = ofMap(ofToFloat(pos[2]), 1500, 1700, 70, 30);
-                
-                if(currentBody > 2){
-                    moveOne = ofLerp(moveOne, bodyOne + dist / 2, 0.001);
-                }
-                
-                blobs[i].pos.x = moveOne + x;
-                // move the head up
-                if ( i == 26) {
-                     blobs[i].pos.y = ofGetHeight() - (y + ofGetHeight() / 2) + 26;
-                } else {
-                blobs[i].pos.y = ofGetHeight() - (y + ofGetHeight() / 2);
-                }
-                
-                /*
-                 level one action: stand [0 - 2]
-                 level two action: handshake, hug [3 - 6]
-                 level three action: pat, linking, kiss, cuddle [7 - 18]
-                 avert action: walking [19 - 20]
-                 */
-
-                x = ofMap(ofToInt(pos[0]), ofGetWidth() * 2, -ofGetWidth() * 2, -ofGetWidth() / 2, ofGetWidth() / 2) + 45;
-                y = ofMap(ofToInt(pos[1]), -ofGetHeight() * 2, ofGetHeight() * 2, -ofGetHeight() / 2, ofGetHeight() / 2);
-                z = ofMap(ofToFloat(pos[2]), 1500, 1700, 200, 30);
-                
-                if(currentBody > 2){
-                    moveTwo = ofLerp(moveTwo, bodyTwo - dist / 2, 0.001);
-                }
-                
-                blobs[i + 32].pos.x = moveTwo + x;
-                // move the head up
-                if ( i == 26) {
-                     blobs[i + 32].pos.y = ofGetHeight() - (y + ofGetHeight() / 2) + 26;
-                } else {
-                blobs[i + 32].pos.y = ofGetHeight() - (y + ofGetHeight() / 2);
-                }
-            }
-
-        }
-
-    }
+   
 }
 
 //--------------------------------------------------------------
